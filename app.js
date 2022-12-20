@@ -55,14 +55,15 @@ app.post('/addClient', urlencodedParser, (req, res) => {
 
     try {
         if(!isValidNumber) {
-            throw new ValidationError("Number field is ircorrect");
+            res.sendStatus(403)
+            throw new ValidationError("Number field is ircorrect")
         } else if (!!!name) {
+            res.sendStatus(403)
             throw new ValidationError("Name field is empty");
         }
         db.query(sql, [name, phoneNumber, body], (err, result, field) => {
             if(err) throw err;
-            res.send("user added");
-            console.log('this shit happened')
+            res.send("user added")
             sendCallBackRequest()
         })
     } catch(e) {

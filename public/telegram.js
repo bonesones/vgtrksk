@@ -1,10 +1,8 @@
 const TelegramBot = require('node-telegram-bot-api');
-const token = MyToken;
+const token = token;
 const bot = new TelegramBot(token, { polling: true });
 const mysql = require('mysql2')
 const axios = require('axios');
-
-let access = false;
 
 const db = mysql.createConnection({
     host: "localhost",  
@@ -14,7 +12,6 @@ const db = mysql.createConnection({
 })
 
 let index = 0;
-let splited = [];
 let isProcessed = false;
 const commands = ["Просмотреть все необработанные заявки", "Найти заявку по номеру", "История заявок"]
 
@@ -92,7 +89,6 @@ bot.onText(/\/start/, (msg) => {
             loginUser(chatId, username);
         }
     })
-    return;
 })
 
 
@@ -103,11 +99,21 @@ const sendLastRequest = function(chatId){
             id: `Заявка №<code>${result.id}</code>\n`,
             name: `Имя: ${result.name}\n`,
             phone: `Телефон: ${result.phone}\n`,
-            body: `Сообщение: ${result.body}\n`
+            body: `Сообщение: \n${result.body}`
         }
 
+        bot.on('callback_query', currentCallbackQuery);
+
         bot.sendMessage(chatId, data.id + data.name + data.phone + (result.body ? data.body : ""), {
-            parse_mode: "HTML"
+            parse_mode: "HTML",
+            reply_markup: {
+                inline_keyboard: [
+                    [{
+                        text: "✅ Пометить обработанной",
+                        callback_data: "processed " + result.id
+                    }]
+                ]
+            }
         })
     })
 }
@@ -128,22 +134,28 @@ const primary = function(query) {
 
 const sendCallBackRequest = async function() {
 
-    const response = await axios.get("http://localhost:3500/requests")
+    const response = await axios.get("http://localhost:3500/requests/status/unprocessed")
     const data = response.data;
 
     bot.on("callback_query", primary)
 
-    await bot.sendMessage(734971584, "📩 +1 новая заявка", {
-        reply_markup: {
-            inline_keyboard: [
-                [{
-                    text: "Просмотреть",
-                    callback_data: "check_last"
-                }]
-            ]
-        }
+    const sql = "SELECT userId FROM users";
+
+    db.query(sql, (err, result, fields) => {
+        result.forEach( async ({ userId }) => {
+            await bot.sendMessage(userId, "📩 +1 новая заявка", {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{
+                            text: "Просмотреть",
+                            callback_data: "check_last"
+                        }]
+                    ]
+                }
+            })
+            await bot.sendMessage(userId, "Всего необработанных заявок: " + data.length)
+        })
     })
-    await bot.sendMessage(734971584, "Всего необработанных заявок: " + data.length)
 }
 
 const splitArray = function(array, length) {
@@ -242,7 +254,7 @@ const sendCurrentRequest = async function(chatId, id) {
         id: `Заявка №<code>${request.id}</code>\n`,
         name: `Имя: ${request.name}\n`,
         phone: `Телефон: ${request.phone}\n`,
-        body: `Сообщение: ${request.body}\n`
+        body: `Сообщение: \n${request.body}`
     }
 
     bot.on('callback_query', currentCallbackQuery);
@@ -260,7 +272,7 @@ const editCurrentRequest = async function(chatId, message, id) {
         id: `Заявка №<code>${request.id}</code>\n`,
         name: `Имя: ${request.name}\n`,
         phone: `Телефон: ${request.phone}\n`,
-        body: `Сообщение: ${request.body}\n`
+        body: `Сообщение: \n${request.body}`
     }
 
     bot.on('callback_query', currentCallbackQuery);
@@ -344,12 +356,12 @@ const callback = async function(query) {
 
 const sendPage = function(chatId, array, index) {
     if(array.length === 0) {
-        bot.sendMessage(chatId, isProcessed ? "Обработанные " : "Необработанные " + "заявки отсутсвуют")
+        bot.sendMessage(chatId, (isProcessed ? "Обработанные " : "Необработанные ") + "заявки отсутствуют")
         return;
     }
     bot.on("callback_query", callback);
 
-    return bot.sendMessage(chatId, "Необработанные заявки", {
+    return bot.sendMessage(chatId, isProcessed ? "Обработанные заявки" : "Необработанные заявки", {
         "reply_markup": renderPage(array, index)
     })
 }
@@ -437,21 +449,9 @@ const getProcessedRequests = async function() {
 
 }
 
-
-bot.onText(/\/test/, async (msg) => {
+const mainCommandsHandler = async function(msg) {
     const chatId = msg.chat.id;
-    await getCallBackRequests()
-    await sendPage(chatId, splited, index);
-})
-
-bot.on("message", async msg => {
-    const chatId = msg.chat.id;
-    if(!access && commands.includes(msg.text)) {
-        await bot.sendMessage(chatId, "У вас нет доступа к боту")
-        return;
-    }
     let data;
-    
 
     switch(msg.text) {
         case "Просмотреть все необработанные заявки":
@@ -469,6 +469,18 @@ bot.on("message", async msg => {
             data = await getProcessedRequests();
             await sendPage(chatId, data, index)
     }
+}
+
+bot.on("message", async msg => {
+    const chatId = msg.chat.id;
+    const sql = "SELECT * FROM users WHERE userId = ?";
+    db.query(sql, [chatId], (err, result, fields) => {
+        if(result.length !== 0) {
+            mainCommandsHandler(msg)
+        } else {
+            bot.sendMessage(chatId, "У вас нет доста к боту")
+        }
+    });
 })
 
 bot.on('polling_error', (err) => {
