@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=<device-width>, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="page">
+    <form class="form-callBack" action="/addClient" method="post">
+        <h2 class="form-callBack__form-title">Оставьте заявку и мы вам перезвоним</h2>
+        <fieldset class="fieldset">
+            <input class="form-callBack__name" type="text" name="name" placeholder="Имя">
+            <input class="form-callBack__phone-number" type="text" name="phoneNumber" data-phone-pattern data-phone-clear = "false" placeholder="Номер телефона">
+            <textarea name="body" placeholder="Примечание" rows="5" cols="10"></textarea>
+            <input class="form-callBack__send-button" type="submit" value="Отправить">
+        </fieldset>
+    </form>
+    <div class="warning">
+        <h3>Ошибка!</h3>
+        <p>Заполните форму <strong>правильно!</strong></p>
+        <p>Необязательно только поле "Примечание"</p>
+    </div>
+    <script src="/script.js"></script>
+    <script src="/phonemask.js"></script>
+</body>
+</html>
